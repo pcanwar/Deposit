@@ -15,7 +15,6 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 
@@ -33,8 +32,6 @@ error UnrecognizedTokenAddress();
 error FailedTransaction();
 
 contract Task is Ownable {
-    // address private _owner;
-
     mapping(address => mapping(address => uint256)) private _balances;
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet private _set;
@@ -113,23 +110,6 @@ contract Task is Ownable {
         return (res, bal);
     }
 
-    function balanceOf2()
-        public
-        view
-        returns (address[] memory, uint256[] memory)
-    {
-        address _owner = owner();
-        address[] memory res = new address[](_set.length());
-        uint256[] memory bal = new uint256[](_set.length());
-
-        for (uint256 i = 0; i < _set.length(); ++i) {
-            // address _add = at(i);
-            res[i] = at(i);
-            bal[i] = _balances[res[i]][_owner];
-        }
-        return (res, bal);
-    }
-
     function deposit(
         address _tokenAdress,
         address depositAddress,
@@ -169,15 +149,23 @@ contract Task is Ownable {
         return res;
     }
 
-    function _withdraw(address _tokenAdress, uint256 _amount)
+    function withdraw(address _tokenAdress, uint256 _amount)
         external
         onlyOwner
+        returns (bool)
     {
+        uint256 bal = _balances[_tokenAdress][msg.sender];
+        require(_amount > 0 && bal >= _amount, "Not Allowed");
         bool isContains = contains(_tokenAdress);
         if (!isContains) revert UnrecognizedTokenAddress();
         _balances[_tokenAdress][msg.sender] -= _amount;
-
-        IERC20(_tokenAdress).transfer(msg.sender, _amount);
+        if (_balances[_tokenAdress][msg.sender] == 0) {
+            remove(_tokenAdress);
+        }
+        bool res = IERC20(_tokenAdress).transfer(msg.sender, _amount);
+        if (!res) FailedTransaction;
+        emit Withdraw(_tokenAdress, _amount);
+        return res;
     }
 
     function withdrawAll() external onlyOwner returns (bool res) {
@@ -193,12 +181,11 @@ contract Task is Ownable {
             // address _add = at(i);
             _tokenAddress[i] = at(i);
             _amount[i] = _balances[_tokenAddress[i]][_owner];
-            // require(_amount[i] > 0, "No Balance");
-
             _balances[_tokenAddress[i]][_owner] -= _amount[i];
             res = IERC20(_tokenAddress[i]).transfer(_owner, _amount[i]);
             if (!res) FailedTransaction;
         }
+        // here the set can be rest or add a func to start over
         for (i = 0; i < len; ++i) {
             remove(_tokenAddress[i]);
         }
@@ -227,7 +214,6 @@ contract Task is Ownable {
         );
         bool isAdded = add(_tokenAdress);
         if (!isAdded) {
-            // _balances[_tokenAdress][_owner] = _amount;
             _balances[_tokenAdress][owner] += value;
         } else {
             _balances[_tokenAdress][owner] = value;
@@ -242,23 +228,4 @@ contract Task is Ownable {
         emit Deposit(_tokenAdress, owner, value);
         return res;
     }
-
-    // function withdrawAll2() external onlyOwner returns (bool res) {
-    //     address _owner = owner();
-    //     address[] memory _tokenAddress = new address[](_set.length());
-    //     uint256[] memory _amount = new uint256[](_set.length());
-    //     uint256 len = length();
-    //     uint256 i;
-    //     for (i = 0; i <= len; ++i) {
-    //         // address _add = at(i);
-    //         _tokenAddress[i] = at(i);
-    //         _amount[i] = _balances[_tokenAddress[i]][_owner];
-    //         // require(_amount[i] > 0, "No Balance");
-
-    //         _balances[_tokenAddress[i]][_owner] -= _amount[i];
-    //         res = IERC20(_tokenAddress[i]).transfer(_owner, _amount[i]);
-    //         // remove(_tokenAddress[i]);
-    //         if (!res) FailedTransaction;
-    //     }
-    // }
 }
