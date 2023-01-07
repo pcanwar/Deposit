@@ -106,7 +106,7 @@ contract Mock20Token0 is BaseTaskTest {
         res = erc20ContractAddress.transferFrom(from, to, amount);
     }
 
-    function itDepositedCorrectly(address user, uint256 amount)
+    function hasItDepositedCorrectly(address user, uint256 amount)
         internal
         returns (bool res)
     {
@@ -115,6 +115,17 @@ contract Mock20Token0 is BaseTaskTest {
         console.log(user, " minting  ", amount);
         approve(_0_Erc20Contract, user, address(task), amount);
         res = task.deposit(address(_0_Erc20Contract), user, amount);
+    }
+
+    function hasItWithdrawedCorrectly(
+        address user,
+        uint256 amountToDeposit,
+        uint256 amountToWithdraw
+    ) internal returns (bool res) {
+        bool _res = hasItDepositedCorrectly(user, amountToDeposit);
+        assertTrue(_res);
+        vm.prank(user);
+        res = task.withdraw(address(_0_Erc20Contract), amountToWithdraw);
     }
 }
 
@@ -129,23 +140,24 @@ contract UserMintandDeposWithFuzz is Mock20Token0 {
         vm.assume(_amountFuzz != 0);
         require(_amountFuzz != 0);
 
-        bool res = itDepositedCorrectly(userA, _amountFuzz);
+        bool res = hasItDepositedCorrectly(userA, _amountFuzz);
         assertTrue(res);
         assertEq(_amountFuzz, task.balanceAt(address(_0_Erc20Contract)));
     }
 
     // In this case assume is not a great fit, so you should bound inputs manually
     function testMintDepositWithBoundFuzz(uint256 _amountFuzz) public {
-        _amountFuzz = bound(_amountFuzz, 200e18, 200e18);
-        require(_amountFuzz >= 200e18 && _amountFuzz <= 200e18);
+        _amountFuzz = bound(_amountFuzz, 20e18, 200e18);
+        require(_amountFuzz >= 20e18 && _amountFuzz <= 200e18);
 
-        bool res = itDepositedCorrectly(userA, _amountFuzz);
+        bool res = hasItDepositedCorrectly(userA, _amountFuzz);
+        console.log("hasItDepositedCorrectly ", _amountFuzz);
         assertTrue(res);
         assertEq(_amountFuzz, task.balanceAt(address(_0_Erc20Contract)));
     }
 
     function testFailedMintDepositWithFuzz(uint256 _amountFuzz) public {
-        bool res = itDepositedCorrectly(userA, _amountFuzz);
+        bool res = hasItDepositedCorrectly(userA, _amountFuzz);
         assertTrue(!res);
         assertGt(_amountFuzz, task.balanceAt(address(_0_Erc20Contract)));
     }
@@ -156,7 +168,74 @@ contract UserMintandDeposWithFuzz is Mock20Token0 {
         vm.assume(_amountFuzz != 0);
         require(_amountFuzz != 0);
 
-        bool res = itDepositedCorrectly(user, _amountFuzz);
+        bool res = hasItDepositedCorrectly(user, _amountFuzz);
         assertTrue(!res);
+    }
+}
+
+contract UserWithdrawWithFuzz is Mock20Token0 {
+    function setUp() public override {
+        Mock20Token0.setUp();
+        console.log("User wants to withdraw with fuzz");
+    }
+
+    function testMintWithdrawWithBoundFuzz(
+        uint256 _amountFuzz,
+        uint256 _amountFuzzToWithdraw
+    ) public {
+        _amountFuzz = bound(_amountFuzz, 101e18, 200e18);
+        require(_amountFuzz >= 101e18 && _amountFuzz <= 200e18);
+        emit log_named_uint("_amountFuzz", _amountFuzz);
+
+        _amountFuzzToWithdraw = bound(_amountFuzzToWithdraw, 10e18, 100e18);
+        require(
+            _amountFuzzToWithdraw >= 10e18 && _amountFuzzToWithdraw <= 100e18
+        );
+        emit log_named_uint(" amount fuzz to withdraw", _amountFuzzToWithdraw);
+
+        bool res = hasItWithdrawedCorrectly(
+            userA,
+            _amountFuzz,
+            _amountFuzzToWithdraw
+        );
+        assertTrue(res);
+
+        assertEq(
+            _amountFuzz - _amountFuzzToWithdraw,
+            task.balanceAt(address(_0_Erc20Contract))
+        );
+    }
+}
+
+contract UserHasNoEnoughToWithdrawWithFuzz is Mock20Token0 {
+    function setUp() public override {
+        Mock20Token0.setUp();
+        console.log("User has no enough to withdraw with fuzz");
+    }
+
+    function testFailedToWithdrawWithBoundFuzz(
+        uint256 _amountFuzz,
+        uint256 _amountFuzzToWithdraw
+    ) public {
+        _amountFuzz = bound(_amountFuzz, 10e18, 20e18);
+        require(_amountFuzz >= 10e18 && _amountFuzz <= 20e18);
+
+        _amountFuzzToWithdraw = bound(_amountFuzzToWithdraw, 10e18, 100e18);
+        require(
+            _amountFuzzToWithdraw >= 21e18 && _amountFuzzToWithdraw <= 100e18
+        );
+
+        bool res = hasItWithdrawedCorrectly(
+            userA,
+            _amountFuzz,
+            _amountFuzzToWithdraw
+        );
+        assertTrue(!res);
+        assertGt(
+            task.balanceAt(address(_0_Erc20Contract)),
+            _amountFuzzToWithdraw
+        );
+
+        // assertEq(_amountFuzz, task.balanceAt(address(_0_Erc20Contract)));
     }
 }
