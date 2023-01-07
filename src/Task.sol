@@ -72,6 +72,10 @@ contract Task is Ownable {
         return _balances[_set.at(index)][owner()];
     }
 
+    function balanceAt(address _address) public view returns (uint256) {
+        return _balances[_address][owner()];
+    }
+
     /*
       retrun the address of an index 
     */

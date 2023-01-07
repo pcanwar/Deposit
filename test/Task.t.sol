@@ -6,8 +6,11 @@ import "../src/Task.sol";
 import "forge-std/console.sol";
 
 import {MockERC20} from "./mocks/MockERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract BaseTaskTest is Test {
+    using SafeMath for uint256;
+
     Task public task;
     MockERC20 public _0_mockERC20;
     MockERC20 public _1_mockERC20;
@@ -125,16 +128,21 @@ contract UserMintandDepositToTask is Mock20Token0 {
         // user A mint tokens from _0_mockERC20
         MockERC20 _0_Erc20Contract = MockERC20(address(_0_mockERC20));
         mint(_0_Erc20Contract, userA, maxAmountToMint);
-        approve(_0_Erc20Contract, userA, address(task), maxAmountToMint);
+        uint256 _amount = maxAmountToMint * 2;
+        mint(_0_Erc20Contract, userA, _amount);
+        uint256 approveAmount = maxAmountToMint * 3;
+        approve(_0_Erc20Contract, userA, address(task), approveAmount);
 
         bool _0_res = task.deposit(
             address(_0_Erc20Contract),
             userA,
-            maxAmountToMint
+            approveAmount
         );
         uint256 _0_bal = task.balanceAt(0);
-        assertEq(maxAmountToMint, _0_bal);
+        // assertEq(maxAmountToMint, _0_bal);
+
         assertTrue(_0_res);
+        assertEq(task.balanceAt(0), approveAmount);
 
         // user A mint tokens from _1_mockERC20
         MockERC20 _1_Erc20Contract = MockERC20(address(_1_mockERC20));
@@ -193,6 +201,8 @@ contract UserMintandDepositToTask is Mock20Token0 {
             userA,
             maxAmountToMint
         );
+        assertTrue(_1_res);
+
         // works as my logic of the Task contract
         //since User A withdrawed his _1_mockERC20 token, the set in contract would remove the address.
         address _1_tokenAddress = task.at(0);
@@ -214,7 +224,7 @@ contract UserMintandDepositToTask is Mock20Token0 {
         );
 
         assertTrue(_0_res);
-        address _0_tokenAddress = task.at(0);
+        // address _0_tokenAddress = task.at(0);
 
         // user A mint tokens from _1_mockERC20
         MockERC20 _1_Erc20Contract = MockERC20(address(_1_mockERC20));
@@ -225,9 +235,10 @@ contract UserMintandDepositToTask is Mock20Token0 {
             userA,
             maxAmountToMint
         );
-        // works as my logic of the Task contract
-        //since User A withdrawed his _1_mockERC20 token, the set in contract would remove the address.
-        // address _1_tokenAddress = task.at(0);
+        assertTrue(_1_res);
+        // emit log_named_uint("balancexx", task.balanceAt(0));
+
+        // assertEq(task.balanceAt(0), maxAmountToMint);
         vm.prank(userA);
         bool _1_resWith = task.withdrawAll();
         assertTrue(_1_resWith);
