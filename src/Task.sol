@@ -17,8 +17,9 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 
-interface IToken {
+interface ITask {
     function balances(address, address) external view returns (uint256);
 
     function deposit(address, uint256) external;
@@ -68,10 +69,18 @@ contract Task is Ownable {
         return _set.length();
     }
 
+    /**
+     * - index is to a way to find the token address in a set
+     *
+     */
     function balanceAt(uint256 index) public view returns (uint256) {
         return _balances[_set.at(index)][owner()];
     }
 
+    /**
+     * - _address is the token address
+     *
+     */
     function balanceAt(address _address) public view returns (uint256) {
         return _balances[_address][owner()];
     }
@@ -88,7 +97,7 @@ contract Task is Ownable {
     sencond of their balances
     */
     function balanceOf()
-        public
+        external
         view
         returns (address[] memory, uint256[] memory)
     {
@@ -195,22 +204,61 @@ contract Task is Ownable {
         }
     }
 
-    function withdrawAll2() external onlyOwner returns (bool res) {
-        address _owner = owner();
-        address[] memory _tokenAddress = new address[](_set.length());
-        uint256[] memory _amount = new uint256[](_set.length());
-        uint256 len = length();
-        uint256 i;
-        for (i = 0; i <= len; ++i) {
-            // address _add = at(i);
-            _tokenAddress[i] = at(i);
-            _amount[i] = _balances[_tokenAddress[i]][_owner];
-            // require(_amount[i] > 0, "No Balance");
-
-            _balances[_tokenAddress[i]][_owner] -= _amount[i];
-            res = IERC20(_tokenAddress[i]).transfer(_owner, _amount[i]);
-            // remove(_tokenAddress[i]);
-            if (!res) FailedTransaction;
+    function deposits(
+        address _tokenAdress,
+        // address _owner,
+        // address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external returns (bool) {
+        address owner = owner();
+        require(value > 0, "amount needs to be greater than 0");
+        IERC20Permit(_tokenAdress).permit(
+            owner,
+            address(this),
+            value,
+            deadline,
+            v,
+            r,
+            s
+        );
+        bool isAdded = add(_tokenAdress);
+        if (!isAdded) {
+            // _balances[_tokenAdress][_owner] = _amount;
+            _balances[_tokenAdress][owner] += value;
+        } else {
+            _balances[_tokenAdress][owner] = value;
         }
+        bool res = IERC20(_tokenAdress).transferFrom(
+            owner,
+            address(this),
+            value
+        );
+
+        if (!res) FailedTransaction;
+        emit Deposit(_tokenAdress, owner, value);
+        return res;
     }
+
+    // function withdrawAll2() external onlyOwner returns (bool res) {
+    //     address _owner = owner();
+    //     address[] memory _tokenAddress = new address[](_set.length());
+    //     uint256[] memory _amount = new uint256[](_set.length());
+    //     uint256 len = length();
+    //     uint256 i;
+    //     for (i = 0; i <= len; ++i) {
+    //         // address _add = at(i);
+    //         _tokenAddress[i] = at(i);
+    //         _amount[i] = _balances[_tokenAddress[i]][_owner];
+    //         // require(_amount[i] > 0, "No Balance");
+
+    //         _balances[_tokenAddress[i]][_owner] -= _amount[i];
+    //         res = IERC20(_tokenAddress[i]).transfer(_owner, _amount[i]);
+    //         // remove(_tokenAddress[i]);
+    //         if (!res) FailedTransaction;
+    //     }
+    // }
 }

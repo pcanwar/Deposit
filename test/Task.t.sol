@@ -103,8 +103,6 @@ contract Mock20Token0 is BaseTaskTest {
     }
 }
 
-// contract ZeroAddressMintandTxtoTask {}
-
 contract UserMintandDepositToTask is Mock20Token0 {
     function setUp() public override {
         Mock20Token0.setUp();
@@ -124,25 +122,35 @@ contract UserMintandDepositToTask is Mock20Token0 {
         console.log(userA, " minting  ", maxAmountToMint);
     }
 
-    function testDeposit() public {
+    function testTwoDepositsAndBalanceAt() public {
         // user A mint tokens from _0_mockERC20
         MockERC20 _0_Erc20Contract = MockERC20(address(_0_mockERC20));
+        // 1st mintm axAmountToMint 20e18
         mint(_0_Erc20Contract, userA, maxAmountToMint);
         uint256 _amount = maxAmountToMint * 2;
+        // 2nd mint _amount > 3 * 20e18
         mint(_0_Erc20Contract, userA, _amount);
+
         uint256 approveAmount = maxAmountToMint * 3;
+
         approve(_0_Erc20Contract, userA, address(task), approveAmount);
 
         bool _0_res = task.deposit(
             address(_0_Erc20Contract),
             userA,
-            approveAmount
+            maxAmountToMint
         );
-        uint256 _0_bal = task.balanceAt(0);
-        // assertEq(maxAmountToMint, _0_bal);
-
         assertTrue(_0_res);
-        assertEq(task.balanceAt(0), approveAmount);
+
+        bool _0_res1 = task.deposit(address(_0_Erc20Contract), userA, _amount);
+        assertTrue(_0_res1);
+
+        uint256 _0_bal = task.balanceAt(0);
+        emit log_named_uint(
+            "balance of token _0_Erc20Contract in the task contract",
+            _0_bal
+        );
+        assertEq(approveAmount, _0_bal);
 
         // user A mint tokens from _1_mockERC20
         MockERC20 _1_Erc20Contract = MockERC20(address(_1_mockERC20));
@@ -243,5 +251,36 @@ contract UserMintandDepositToTask is Mock20Token0 {
         bool _1_resWith = task.withdrawAll();
         assertTrue(_1_resWith);
         // console.log("_1_tokenAddress", _1_tokenAddress);
+    }
+}
+
+contract CheckFunctions is Mock20Token0 {
+    using stdStorage for StdStorage;
+
+    function setUp() public override {
+        Mock20Token0.setUp();
+        console.log("Check a function in contract  ");
+    }
+
+    function testFindBalanceAt() public {
+        MockERC20 _0_Erc20Contract = MockERC20(address(_0_mockERC20));
+        mint(_0_Erc20Contract, userA, maxAmountToMint);
+        approve(_0_Erc20Contract, userA, address(task), maxAmountToMint);
+        vm.prank(userA);
+        bool _0_res = task.deposit(
+            address(_0_Erc20Contract),
+            userA,
+            maxAmountToMint
+        );
+        assertTrue(_0_res);
+
+        uint256 slot = stdstore
+            .target(address(task))
+            .sig("balanceAt(address)")
+            .with_key(address(_0_Erc20Contract))
+            .find();
+
+        bytes32 data = vm.load(address(task), bytes32(slot));
+        assertEq(maxAmountToMint, uint256(data));
     }
 }
