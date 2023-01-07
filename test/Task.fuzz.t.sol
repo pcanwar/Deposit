@@ -21,6 +21,8 @@ contract BaseTaskTest is Test {
     address internal userB;
     address internal userC;
 
+    MockERC20 public _0_Erc20Contract;
+
     function setUp() public virtual {
         userA = address(uint160(uint256(keccak256(abi.encodePacked("userA")))));
         vm.label(userA, "userA");
@@ -38,6 +40,8 @@ contract BaseTaskTest is Test {
         _0_mockERC20 = new MockERC20("A", "a");
         _1_mockERC20 = new MockERC20("B", "b");
         _2_mockERC20 = new MockERC20("B", "b");
+
+        _0_Erc20Contract = MockERC20(address(_0_mockERC20));
 
         console.log("userA", userA);
         console.log("userB", userB);
@@ -106,8 +110,6 @@ contract Mock20Token0 is BaseTaskTest {
         internal
         returns (bool res)
     {
-        MockERC20 _0_Erc20Contract = MockERC20(address(_0_mockERC20));
-
         mint(_0_Erc20Contract, user, amount);
         assertEq(_0_Erc20Contract.balanceOf(user), amount);
         console.log(user, " minting  ", amount);
@@ -119,13 +121,13 @@ contract Mock20Token0 is BaseTaskTest {
 contract UserMintandDeposWithFuzz is Mock20Token0 {
     function setUp() public override {
         Mock20Token0.setUp();
+
         console.log("User mints and deposits with Fuzz");
     }
 
     function testMintDepositWithFuzz(uint16 _amountFuzz) public {
         vm.assume(_amountFuzz != 0);
         require(_amountFuzz != 0);
-        MockERC20 _0_Erc20Contract = MockERC20(address(_0_mockERC20));
 
         bool res = itDepositedCorrectly(userA, _amountFuzz);
         assertTrue(res);
@@ -137,18 +139,24 @@ contract UserMintandDeposWithFuzz is Mock20Token0 {
         _amountFuzz = bound(_amountFuzz, 200e18, 200e18);
         require(_amountFuzz >= 200e18 && _amountFuzz <= 200e18);
 
-        MockERC20 _0_Erc20Contract = MockERC20(address(_0_mockERC20));
-
         bool res = itDepositedCorrectly(userA, _amountFuzz);
         assertTrue(res);
         assertEq(_amountFuzz, task.balanceAt(address(_0_Erc20Contract)));
     }
 
     function testFailedMintDepositWithFuzz(uint256 _amountFuzz) public {
-        MockERC20 _0_Erc20Contract = MockERC20(address(_0_mockERC20));
-
         bool res = itDepositedCorrectly(userA, _amountFuzz);
         assertTrue(!res);
         assertGt(_amountFuzz, task.balanceAt(address(_0_Erc20Contract)));
+    }
+
+    function testFailedNotOwnerWithFuzz(address user, uint256 _amountFuzz)
+        public
+    {
+        vm.assume(_amountFuzz != 0);
+        require(_amountFuzz != 0);
+
+        bool res = itDepositedCorrectly(user, _amountFuzz);
+        assertTrue(!res);
     }
 }
