@@ -119,7 +119,7 @@ contract Mock20Token0 is BaseTaskTest {
 contract UserMintandDeposWithFuzz is Mock20Token0 {
     function setUp() public override {
         Mock20Token0.setUp();
-        console.log("User mints and deposit with Fuzz");
+        console.log("User mints and deposits with Fuzz");
     }
 
     function testMintDepositWithFuzz(uint16 _amountFuzz) public {
@@ -144,7 +144,7 @@ contract UserMintandDeposWithFuzz is Mock20Token0 {
         assertEq(_amountFuzz, task.balanceAt(address(_0_Erc20Contract)));
     }
 
-    function testFailedMintDepositWithBoundFuzz(uint256 _amountFuzz) public {
+    function testFailedMintDepositWithFuzz(uint256 _amountFuzz) public {
         MockERC20 _0_Erc20Contract = MockERC20(address(_0_mockERC20));
 
         bool res = itDepositedCorrectly(userA, _amountFuzz);
