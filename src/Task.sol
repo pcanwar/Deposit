@@ -155,7 +155,10 @@ contract Task is Ownable {
         returns (bool)
     {
         uint256 bal = _balances[_tokenAdress][msg.sender];
-        require(_amount > 0 && bal >= _amount, "Not Allowed");
+        require(
+            _amount > 0 && bal >= _amount,
+            "Transfer amount exceeds balance"
+        );
         bool isContains = contains(_tokenAdress);
         if (!isContains) revert UnrecognizedTokenAddress();
         _balances[_tokenAdress][msg.sender] -= _amount;
