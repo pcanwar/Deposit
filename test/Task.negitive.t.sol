@@ -118,14 +118,19 @@ contract Mock20Token0 is BaseTaskTest {
     }
 
     function hasItWithdrawedCorrectly(
+        address caller,
         address user,
         uint256 amountToDeposit,
         uint256 amountToWithdraw
     ) internal returns (bool res) {
         bool _res = hasItDepositedCorrectly(user, amountToDeposit);
         assertTrue(_res);
-        vm.prank(user);
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
         res = task.withdraw(address(_0_Erc20Contract), amountToWithdraw);
+        if (!res) {
+            assertTrue(!res, "Caller is not the owner ");
+        }
     }
 }
 
@@ -140,14 +145,16 @@ contract HasNotEnoughInBlalancetoWithdrawToken is Mock20Token0 {
         console.log("User has no enough to withdraw");
     }
 
-    function itReversts(
+    function hasReversted(
+        address _caller,
         address _user,
         uint256 _amountToDeposit,
         uint256 _amountToWithdraw,
         string memory _expRevert
-    ) public {
+    ) internal {
         vm.expectRevert(abi.encodePacked(_expRevert));
         bool res = hasItWithdrawedCorrectly(
+            _caller,
             _user,
             _amountToDeposit,
             _amountToWithdraw
@@ -156,11 +163,34 @@ contract HasNotEnoughInBlalancetoWithdrawToken is Mock20Token0 {
     }
 
     function testFailedWithdrawMoreThanBalance() public {
-        itReversts({
+        hasReversted({
+            _caller: userA,
             _user: userA,
             _amountToDeposit: withdrawedAmount,
             _amountToWithdraw: amountToWithdraw,
             _expRevert: "Transfer amount exceeds balance"
         });
+    }
+}
+
+contract HasNoOwnershipToWithdraw is Mock20Token0 {
+    uint256 private amountToWithdraw = 7e18;
+    uint256 private withdrawedAmount = 10e18;
+
+    function setUp() public override {
+        Mock20Token0.setUp();
+
+        hasItDepositedCorrectly(userA, withdrawedAmount);
+        console.log("User has no enough to withdraw");
+    }
+
+    function testWithdrawWithNoOwnership() public {
+        bool res = hasItWithdrawedCorrectly({
+            caller: userB,
+            user: userA,
+            amountToDeposit: maxAmountToMint,
+            amountToWithdraw: withdrawedAmount
+        });
+        assertTrue(!res, "Error: caller is not the owner");
     }
 }
