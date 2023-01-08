@@ -9,8 +9,15 @@
 - Be able to 
     transfer his deposited tokens for another user on the portifolio smart contract
 - Bonus: add support for EIP-2612 compliant tokens for single transaction deposits
-
 */
+
+/*
+    * I assume that only the owner is able to withdraw,
+      so no one has a permission to withdraw it for him to the owner wallet...  
+    * I think it is better to reset the set of the token addresses when a user withdraw all their tokens
+     so in this code I just looped to remove them one by one. Not opt
+*/
+
 pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -38,12 +45,17 @@ contract Task is Ownable {
 
     event Deposit(
         address indexed tokenContractAdress,
-        address indexed depositAddress,
+        address indexed spender,
         uint256 _amount
     );
 
     event Withdraw(address indexed tokenContractAdress, uint256 _amount);
     event WithdrawAll(address[] indexed tokenContractAdress, uint256[] _amount);
+
+    modifier zeroAddress(address _contract) {
+        require(_contract != address(0), "The address is the zero address");
+        _;
+    }
 
     function add(address _address) private returns (bool) {
         return _set.add(_address);
@@ -71,6 +83,8 @@ contract Task is Ownable {
      *
      */
     function balanceAt(uint256 index) public view returns (uint256) {
+        address tokenAddress = _set.at(index);
+        require(contains(tokenAddress), "Invalid index");
         return _balances[_set.at(index)][owner()];
     }
 
@@ -79,6 +93,7 @@ contract Task is Ownable {
      *
      */
     function balanceAt(address _address) public view returns (uint256) {
+        require(_address != address(0), "Address zero is not a valid owner");
         return _balances[_address][owner()];
     }
 
@@ -86,7 +101,9 @@ contract Task is Ownable {
       retrun the address of an index 
     */
     function at(uint256 index) public view returns (address) {
-        return _set.at(index);
+        address tokenAddress = _set.at(index);
+        require(tokenAddress != address(0), "Invalid index");
+        return tokenAddress;
     }
 
     /*
@@ -112,9 +129,13 @@ contract Task is Ownable {
 
     function deposit(
         address _tokenAdress,
-        address depositAddress,
+        address spender,
         uint256 _amount
-    ) external returns (bool) {
+    ) external zeroAddress(_tokenAdress) zeroAddress(spender) returns (bool) {
+        require(
+            IERC20(_tokenAdress).allowance(spender, address(this)) >= _amount,
+            "Insufficient Allowance"
+        );
         address _owner = owner();
         require(_amount > 0, "amount needs to be greater than 0");
         bool isAdded = add(_tokenAdress);
@@ -127,16 +148,21 @@ contract Task is Ownable {
         }
 
         bool res = IERC20(_tokenAdress).transferFrom(
-            depositAddress,
+            spender,
             address(this),
             _amount
         );
         if (!res) FailedTransaction;
-        emit Deposit(_tokenAdress, depositAddress, _amount);
+        emit Deposit(_tokenAdress, spender, _amount);
         return res;
     }
 
-    function withdraw(address _tokenAdress) external onlyOwner returns (bool) {
+    function withdraw(address _tokenAdress)
+        external
+        onlyOwner
+        zeroAddress(_tokenAdress)
+        returns (bool)
+    {
         bool isContains = contains(_tokenAdress);
         if (!isContains) revert UnrecognizedTokenAddress();
         uint256 _amount = _balances[_tokenAdress][msg.sender];
@@ -152,6 +178,7 @@ contract Task is Ownable {
     function withdraw(address _tokenAdress, uint256 _amount)
         external
         onlyOwner
+        zeroAddress(_tokenAdress)
         returns (bool)
     {
         uint256 bal = _balances[_tokenAdress][msg.sender];
@@ -181,7 +208,6 @@ contract Task is Ownable {
             return false;
         }
         for (i = 0; i < len; ++i) {
-            // address _add = at(i);
             _tokenAddress[i] = at(i);
             _amount[i] = _balances[_tokenAddress[i]][_owner];
             _balances[_tokenAddress[i]][_owner] -= _amount[i];
@@ -196,8 +222,8 @@ contract Task is Ownable {
 
     function deposits(
         address _tokenAdress,
-        // address _owner,
-        // address spender,
+        address _owner,
+        address spender,
         uint256 value,
         uint256 deadline,
         uint8 v,
@@ -207,8 +233,8 @@ contract Task is Ownable {
         address owner = owner();
         require(value > 0, "amount needs to be greater than 0");
         IERC20Permit(_tokenAdress).permit(
-            owner,
-            address(this),
+            _owner,
+            spender,
             value,
             deadline,
             v,
@@ -216,18 +242,18 @@ contract Task is Ownable {
             s
         );
         bool isAdded = add(_tokenAdress);
-        if (!isAdded) {
-            _balances[_tokenAdress][owner] += value;
-        } else {
-            _balances[_tokenAdress][owner] = value;
-        }
         bool res = IERC20(_tokenAdress).transferFrom(
             owner,
             address(this),
             value
         );
-
         if (!res) FailedTransaction;
+        if (!isAdded) {
+            _balances[_tokenAdress][owner] += value;
+        } else {
+            _balances[_tokenAdress][owner] = value;
+        }
+
         emit Deposit(_tokenAdress, owner, value);
         return res;
     }

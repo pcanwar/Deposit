@@ -39,7 +39,7 @@ contract BaseTaskTest is Test {
 
         _0_mockERC20 = new MockERC20("A", "a");
         _1_mockERC20 = new MockERC20("B", "b");
-        _2_mockERC20 = new MockERC20("B", "b");
+        _2_mockERC20 = new MockERC20("C", "c");
 
         _0_Erc20Contract = MockERC20(address(_0_mockERC20));
 

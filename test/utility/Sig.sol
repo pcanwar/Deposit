@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 // import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 // import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-// here I am trying to write my sig from the OZ lib
 contract Sig {
     using ECDSA for bytes32;
 
@@ -71,7 +70,7 @@ contract Sig {
             uint8 v
         )
     {
-        require(sig.length == 65, "invalid signature length");
+        require(sig.length == 65, "Invalid Signature Length");
 
         assembly {
             r := mload(add(sig, 32))
@@ -80,32 +79,31 @@ contract Sig {
         }
     }
 
-    function _getDataHash(Permit calldata _permit)
-        private
-        view
-        returns (bytes32)
-    {
-        uint256 chainid = chainID();
+    function _getDataHash(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 nonce,
+        uint256 deadline
+    ) public pure returns (bytes32) {
+        return
+            keccak256(abi.encodePacked(owner, spender, value, nonce, deadline));
+    }
+
+    function getDataHash(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 nonce,
+        uint256 deadline
+    ) public pure returns (bytes32) {
         return
             keccak256(
                 abi.encodePacked(
-                    chainid,
-                    // PERMIT_TYPEHASH,
-                    _permit.owner,
-                    _permit.spender,
-                    _permit.value,
-                    _permit.nonce,
-                    _permit.deadline
+                    uint16(0x1901),
+                    _getDataHash(owner, spender, value, nonce, deadline)
                 )
             );
-    }
-
-    function getDataHash(Permit calldata _permit)
-        public
-        view
-        returns (bytes32)
-    {
-        return _getDataHash(_permit);
     }
 
     function chainID() private view returns (uint256) {

@@ -37,7 +37,7 @@ contract BaseTaskTest is Test {
 
         _0_mockERC20 = new MockERC20("A", "a");
         _1_mockERC20 = new MockERC20("B", "b");
-        _2_mockERC20 = new MockERC20("B", "b");
+        _2_mockERC20 = new MockERC20("C", "c");
 
         console.log("userA", userA);
         console.log("userB", userB);
