@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+// import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 // import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 // import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -11,6 +13,9 @@ contract Sig {
     uint256 internal immutable CHAINID;
 
     bytes32 internal DOMAIN_SEPARATOR;
+    bytes32 public constant PERMIT_TYPEHASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+
     struct Permit {
         address owner;
         address spender;
@@ -19,7 +24,8 @@ contract Sig {
         uint256 deadline;
     }
 
-    constructor() {
+    constructor(bytes32 _DOMAIN_SEPARATOR) {
+        DOMAIN_SEPARATOR = _DOMAIN_SEPARATOR;
         CHAINID = block.chainid;
     }
 
@@ -85,9 +91,27 @@ contract Sig {
         uint256 value,
         uint256 nonce,
         uint256 deadline
-    ) public pure returns (bytes32) {
+    ) private pure returns (bytes32) {
         return
             keccak256(abi.encodePacked(owner, spender, value, nonce, deadline));
+    }
+
+    function _getDataHash(Permit memory _permit)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return
+            keccak256(
+                abi.encode(
+                    PERMIT_TYPEHASH,
+                    _permit.owner,
+                    _permit.spender,
+                    _permit.value,
+                    _permit.nonce,
+                    _permit.deadline
+                )
+            );
     }
 
     function getDataHash(
@@ -96,12 +120,24 @@ contract Sig {
         uint256 value,
         uint256 nonce,
         uint256 deadline
-    ) public pure returns (bytes32) {
+    ) public view returns (bytes32) {
         return
             keccak256(
                 abi.encodePacked(
-                    uint16(0x1901),
+                    "\x19\x01", // uint16(0x1901),
+                    DOMAIN_SEPARATOR,
                     _getDataHash(owner, spender, value, nonce, deadline)
+                )
+            );
+    }
+
+    function getDataHash(Permit memory _permit) public view returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(
+                    uint16(0x1901), // "\x19\x01", //
+                    DOMAIN_SEPARATOR,
+                    _getDataHash(_permit)
                 )
             );
     }
