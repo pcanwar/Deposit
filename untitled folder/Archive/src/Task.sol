@@ -12,9 +12,9 @@
 */
 
 /*
-    * Let's assume that only the owner is able to withdraw,
+    * I assume that only the owner is able to withdraw,
       so no one has a permission to withdraw it for him to the owner wallet...  
-    * It is better to reset the set of the token addresses when a user withdraw all their tokens
+    * I think it is better to reset the set of the token addresses when a user withdraw all their tokens
      so in this code I just looped to remove them one by one. Not opt
 */
 
